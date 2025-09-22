@@ -1,34 +1,35 @@
-
-//const Sequelize = require('sequelize');
-//const sqlite3 = require('sqlite3');
-
-import {Sequelize, DataTypes} from 'sequelize';
+import { Sequelize, DataTypes } from 'sequelize';
 import sqlite3 from 'sqlite3';
 
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
-    dialect: 'postgres',
-    dialectOptions: {
-        ssl: {
-            require: true,
-            rejectUnauthorized: false
+let sequelize: Sequelize;
+
+// Check if a DATABASE_URL is provided (for Render/PostgreSQL)
+if (process.env.DATABASE_URL) {
+    sequelize = new Sequelize(process.env.DATABASE_URL, {
+        dialect: 'postgres',
+        dialectOptions: {
+            ssl: {
+                require: true,
+                rejectUnauthorized: false // Necessary for Render's free tier PostgreSQL
+            }
         }
-    }
-});
-const name = "ecodnp";
+    });
+} else {
+    // Fallback to SQLite for local development
+    const name = "ecodnp";
+    const getStoragePath = () => {
+        let storagePath = `${process.env.SQLITE_DBS_LOCATION || './'}/${name}`; // Default to local dir if not set
+        console.log(`STORAGE PATH: ${storagePath}`);
+        return storagePath;
+    };
 
-const getStoragePath = ()=>{
-    let storagePath = `${process.env.SQLITE_DBS_LOCATION}/${name}`
-    console.log(`STORAGE PATH: ${storagePath}`);
-    return storagePath;
-};
+    sequelize = new Sequelize({
+        dialect: "sqlite",
+        dialectModule: sqlite3,
+        storage: getStoragePath()
+    });
+}
 
-const sequelize = new Sequelize({
-    dialect: "sqlite",
-    dialectModule: sqlite3,
-    storage: getStoragePath()
-    //storage: 'testStorageFile'
-  });
-//const sequelize = new Sequelize('sqlite::memory:');
 const Person = sequelize.define('Person', {
     user_id: {
         type: DataTypes.INTEGER,
@@ -70,17 +71,15 @@ const LoginInstance = sequelize.define("LoginInstance", {
 		unique: true,
 		primaryKey: true,
 	},
-	//user: {
     user_id: {
-		type: DataTypes.STRING/*INT!*/,
+		type: DataTypes.INTEGER,
 		allowNull: false,
 		references: {
 			model: Person,
-			//key: "username",
             key: "user_id"
 		},
-		onUpdate: "CASCADE", // are those neccessary here ? Shouldn't be on the user entity instead ?
-		onDelete: "CASCADE", //
+		onUpdate: "CASCADE",
+		onDelete: "CASCADE",
 	}
 })
 
@@ -100,7 +99,7 @@ const Relationship = sequelize.define("Relationship", {
     second_user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        primaryKey: true // composite pk
+        primaryKey: true
     }
 }, {
     indexes: [
@@ -135,26 +134,12 @@ const ForumPost = sequelize.define("ForumPost", {
 		type: DataTypes.STRING,
 		allowNull: true,
 	},
-	/*parent_id: {
-		type: DataTypes.INTEGER, // references self, can't do proper referencing because it would require the model to be finished here
-		allowNull: true,
-	}*/
-
 });
-
-
-/* module.exports = {
-    sequelize: sequelize,
-    Person: Person,
-	LoginInstance: LoginInstance
-    //name: name //hide/delete?
-}; */
 
 export default {
     sequelize: sequelize,
     Person: Person,
     LoginInstance: LoginInstance,
-    //name: name //hide/delete?
     Relationship: Relationship,
     ForumPost: ForumPost,
 };
